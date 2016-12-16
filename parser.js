@@ -2,7 +2,12 @@
 function* lex(str){
   if((typeof str) === 'string'){
     str = function*(str){
-          yield* str.split('');
+          for(let c of str.split('')){
+            yield c;
+          }
+          while(true){
+            yield ')';
+          }
         }(str);
   }
   while(true){
@@ -80,4 +85,74 @@ function OR(lhs,rhs){
 function AND(lhs,rhs){
     return {type:'binary',connective:'^',
             lhs:lhs,rhs:rhs};
+}
+
+var precedence = {'~':3,'^':2,'v':2,'->':1,'<->':0};
+function flexibleParse(l){
+  let stack = [];
+  let next = l.next().value;
+  if(next.token === '('){
+    stack.push({done:true,exp:flexibleParse(l)});
+  }else if(next.token === 'variable'){
+    stack.push({done:true,exp:{type: 'variable', value: next.value}});
+  }else if(next.token === '~'){
+    stack.push({done:false,type:'not'});
+  }else if(next.token === '->' || next.token === 'v' || next.token === '^' || next.token === '<->' || next.token === ')'){
+    throw "Did not expect the token: " + next.token + '. Expected a (, ~ or variable.'
+  }
+  // Hacky shit because I want the generator to not be ended after we break from the loop
+  for(let next = l.next(); !next.done; next = l.next()){
+    next = next.value;
+    let last = stack[stack.length-1];
+    if(next.token === ')'){
+      break;
+    }
+    if(next.token === '->' || next.token === 'v' || next.token === '^' || next.token === '<->'){
+      if(!last.done){
+        throw "Did not expect the token: " + next.token + '. Expected a (, ~ or variable.';
+      }
+      let lhs = last.exp;
+      stack.pop();
+      for(let i = stack.length-1; i >= 0; i--){
+        if(precedence[next.token] < precedence[stack[i].type]){
+          lhs = {type:'binary',connective:stack[i].type,lhs:stack[i].lhs,rhs:lhs};
+          stack.pop();
+        }else{
+          break;
+        }
+      }
+      stack.push({done:false,type:next.token,lhs:lhs});
+    }else if(next.token === '~'){
+      if(last.done){
+        throw "Missing connective before ~";
+      }
+      stack.push({done:false,type:'not'});
+    }else if(next.token === 'variable'){
+      if(last.done){
+        throw "Missing connective before new variable: " + next.value;
+      }
+      stack.push({done:true,exp:{type: 'variable', value: next.value}});
+    }else if(next.token === '('){
+      if(last.done){
+        throw "Missing connective before new (";
+      }
+      stack.push({done:true,exp:flexibleParse(l)});
+    }
+  }
+  var last = stack[stack.length-1];
+  if(!last.done){
+    throw "Unexpected end to expression. Expected another complete expression before it"
+  }
+  var exp = last.exp;
+  for(let i = stack.length-2; i >= 0; i--){
+    if(stack[i].done){
+      throw "Missing connective";
+    }
+    if(exp.type === 'not'){
+      exp = not(exp);
+    }else{
+      exp = {type:'binary',connective:stack[i].type,lhs:stack[i].lhs,rhs:exp};
+    }
+  }
+  return exp;
 }
