@@ -98,7 +98,7 @@ function flexibleParse(l){
   }else if(next.token === '~'){
     stack.push({done:false,type:'not'});
   }else if(next.token === '->' || next.token === 'v' || next.token === '^' || next.token === '<->' || next.token === ')'){
-    throw "Did not expect the token: " + next.token + '. Expected a (, ~ or variable.'
+    throw "Did not expect the token: " + next.token + '. Expected a (, ~ or variable.';
   }
   // Hacky shit because I want the generator to not be ended after we break from the loop
   for(let next = l.next(); !next.done; next = l.next()){
@@ -141,15 +141,15 @@ function flexibleParse(l){
   }
   var last = stack[stack.length-1];
   if(!last.done){
-    throw "Unexpected end to expression. Expected another complete expression before it"
+    throw "Unexpected end to expression. Expected another complete expression before it";
   }
   var exp = last.exp;
   for(let i = stack.length-2; i >= 0; i--){
     if(stack[i].done){
       throw "Missing connective";
     }
-    if(exp.type === 'not'){
-      exp = not(exp);
+    if(stack[i].type === 'not'){
+      exp = NOT(exp);
     }else{
       exp = {type:'binary',connective:stack[i].type,lhs:stack[i].lhs,rhs:exp};
     }
