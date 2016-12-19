@@ -45,7 +45,7 @@ function* lex(str){
 function parse(l){
   var n = l.next().value;
   if(n.token === 'variable'){
-    return {type: 'variable', value: n.value};
+    return VAR(n.value);
   }
   if(n.token === '~'){
     return NOT(parse(l));
@@ -86,8 +86,11 @@ function AND(lhs,rhs){
     return {type:'binary',connective:'^',
             lhs:lhs,rhs:rhs};
 }
+function VAR(value){
+    return {type:'variable',value:value};;
+}
 
-var precedence = {'~':3,'^':2,'v':2,'->':1,'<->':0};
+var precedence = {'~':3,'^':2,'v':2,'->':1,'<->':1};
 function flexibleParse(l){
   let stack = [];
   let next = l.next().value;
@@ -96,7 +99,7 @@ function flexibleParse(l){
   }else if(next.token === 'variable'){
     stack.push({done:true,exp:{type: 'variable', value: next.value}});
   }else if(next.token === '~'){
-    stack.push({done:false,type:'not'});
+    stack.push({done:false,type:'~'});
   }else if(next.token === '->' || next.token === 'v' || next.token === '^' || next.token === '<->' || next.token === ')'){
     throw "Did not expect the token: " + next.token + '. Expected a (, ~ or variable.';
   }
@@ -115,7 +118,11 @@ function flexibleParse(l){
       stack.pop();
       for(let i = stack.length-1; i >= 0; i--){
         if(precedence[next.token] < precedence[stack[i].type]){
-          lhs = {type:'binary',connective:stack[i].type,lhs:stack[i].lhs,rhs:lhs};
+          if(stack[i].type === '~'){
+            lhs = NOT(lhs);
+          }else{
+            lhs = {type:'binary',connective:stack[i].type,lhs:stack[i].lhs,rhs:lhs};
+          }
           stack.pop();
         }else{
           break;
