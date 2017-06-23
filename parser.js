@@ -133,7 +133,7 @@ function flexibleParse(l){
       if(last.done){
         throw "Missing connective before ~";
       }
-      stack.push({done:false,type:'not'});
+      stack.push({done:false,type:'~'});
     }else if(next.token === 'variable'){
       if(last.done){
         throw "Missing connective before new variable: " + next.value;
@@ -155,7 +155,7 @@ function flexibleParse(l){
     if(stack[i].done){
       throw "Missing connective";
     }
-    if(stack[i].type === 'not'){
+    if(stack[i].type === '~'){
       exp = NOT(exp);
     }else{
       exp = {type:'binary',connective:stack[i].type,lhs:stack[i].lhs,rhs:exp};
