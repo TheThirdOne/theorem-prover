@@ -1,5 +1,4 @@
-
-// Simple prover that follows thease rules (Always use above tules first)
+// Simple prover that follows thease rules (Always use above rules first)
 // 1. To derive a conditional, assume the antecedent, then derive the consequent
 // 2. To derive a conjuction, derive the conjucts, then use adjunction
 // 3. To derive a biconditional, derive the two corresponding conditionals, then use conditional biconditional
@@ -35,24 +34,23 @@ function prove(thm, truths=[], hints=[]){
                 {type:'derived',reason:'CB',exp:thm,from:[forward,backward]}];// Then combine them
     return [{type:'show', exp: thm,steps:steps}];
   }else if(thm.type === 'binary' && thm.connective === '^'){
-    console.log('Shown by separation',str(thm))
     // Show the subparts and then use adjunction to derive conjunctions
     let steps = [...prove(thm.lhs,[...truths],[...hints]),                    // Prove the left side
                  ...prove(thm.rhs,[...truths],[...hints]),                    // Then prove the right case
                 {type:'derived',reason:'ADJ',exp:thm,from:[thm.lhs,thm.rhs]}];// Then combine them
     return [{type:'show', exp: thm,steps:steps}];
   }else if(thm.type === 'binary' && thm.connective === 'v'){
-    // Show ~lhs->rhs, then show lhs, then use addition
+    // Trick the system into proving something harder than it knows how to do
     let cdForm = IF(NOT(thm.lhs),thm.rhs);
-    let steps = [{type:'assumption', reason:'assumption (id)', exp: NOT(thm)}, // Assume negation
-                 ...prove(cdForm,[...truths],[...hints]),                      // Prove the conditional form
-                 {type:'show', exp: thm.lhs,steps:                             // Inlined proof equivilant to (~p->q)^~(pvq)->p
-                                [{type:'assumption', reason:'assumption (id)', exp: NOT(thm.lhs)},
-                                 {type:'derived',    reason:'MP',              exp: thm.rhs,  from:[NOT(thm.lhs),cdForm]},
-                                 {type:'derived',    reason:'ADD',             exp: thm,      from:[thm.rhs]},
-                                 {type:'repetition', reason:'repetition',      exp: NOT(thm)}
-                                ]},
-                {type:'derived',reason:'ADD',exp:thm,from:[thm.lhs]}];         // Then form the contradiction
+    let miniProof = prove(cdForm,[...truths],[...hints])[0]; // prove ~lhs -> rhs
+    miniProof.exp = thm.lhs;                                 // then pretend it was actually an indirect derivation
+    miniProof.steps[0].reason = 'assumption (id)';           // Then make an actual contradiction
+    miniProof.steps.push({type:'derived',reason:'ADD',exp: thm,from:[thm.rhs]},{type:'repetition', reason:'repetition',exp: NOT(thm)});
+
+    // Build a simple proof around that trick
+    let steps = [{type:'assumption', reason:'assumption (id)', exp: NOT(thm)},
+                 miniProof,
+                 {type:'derived',    reason:'ADD',             exp: thm,      from:[thm.lhs]}];
     return [{type:'show', exp: thm,steps:steps}];
   }else{
     // Otherwise use indirect derivation
